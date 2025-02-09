@@ -1,0 +1,120 @@
+---
+title: "AMOD-5240H Project EDA Summary Statistics"
+author: "Yameen"
+format: pdf
+---
+
+```{r}
+#| include: false
+
+library(tidyverse)
+library(knitr)
+library(ggplot2)
+
+olympics <- read_csv("https://raw.githubusercontent.com/rfordatascience/tidytuesday/main/data/2024/2024-08-06/olympics.csv")
+```
+
+```{r}
+#| echo: false
+
+num_summary <- olympics %>%
+  summarise(
+    Mean_Age = mean(age, na.rm = TRUE),
+    Median_Age = median(age, na.rm = TRUE),
+    Min_Age = min(age, na.rm = TRUE),
+    Max_Age = max(age, na.rm = TRUE),
+    SD_Age = sd(age, na.rm = TRUE),
+    IQR_Age = IQR(age, na.rm = TRUE),
+
+    Mean_Height = mean(height, na.rm = TRUE),
+    Median_Height = median(height, na.rm = TRUE),
+    Min_Height = min(height, na.rm = TRUE),
+    Max_Height = max(height, na.rm = TRUE),
+    SD_Height = sd(height, na.rm = TRUE),
+    IQR_Height = IQR(height, na.rm = TRUE),
+
+    Mean_Weight = mean(weight, na.rm = TRUE),
+    Median_Weight = median(weight, na.rm = TRUE),
+    Min_Weight = min(weight, na.rm = TRUE),
+    Max_Weight = max(weight, na.rm = TRUE),
+    SD_Weight = sd(weight, na.rm = TRUE),
+    IQR_Weight = IQR(weight, na.rm = TRUE)
+  ) %>%
+  pivot_longer(cols = everything(), names_to = "Statistic", values_to = "Value")
+
+kable(num_summary, caption = "Summary Statistics for Continuous Variables", digits = 2)
+```
+
+```{r}
+#| echo: false
+
+cat_summary_sex <- olympics %>%
+  count(sex) %>%
+  mutate(Proportion = n / sum(n))
+
+kable(cat_summary_sex, caption = "Proportion of Athletes by Sex")
+```
+
+```{r}
+#| echo: false
+
+cat_summary_medal <- olympics %>%
+  count(medal) %>%
+  mutate(Proportion = n / sum(n))
+
+kable(cat_summary_medal, caption = "Proportion of Medal Winners")
+```
+
+```{r}
+#| echo: false
+
+cat_summary_combined <- olympics %>%
+  group_by(medal, sex) %>%
+  summarise(Count = n(), .groups = "drop") %>%
+  mutate(Proportion = Count / sum(Count)) %>%
+  pivot_wider(names_from = sex, values_from = c(Count, Proportion))
+
+kable(cat_summary_combined, caption = "Medal Distribution by Mdeal Type Sex")
+```
+
+```{r fig.height=18, fig.width=14}
+#| echo: false
+
+ggplot(olympics %>% filter(!is.na(age)), aes(x = sport, y = age, fill = sport)) +
+  geom_boxplot(outlier.alpha = 0.5) +  
+  labs(title = "Age Distribution by Sport",
+       x = "Sport",
+       y = "Age") +
+  theme_minimal() +
+  theme(
+    axis.text.x = element_text(size = 18, face = "bold"),
+    axis.text.y = element_text(size = 18, face = "bold"),
+    axis.title.x = element_text(size = 25, face = "bold"),
+    axis.title.y = element_text(size = 25, face = "bold"),
+    plot.title = element_text(size = 30, face = "bold"),
+    legend.position = "none"
+  ) +
+  scale_y_continuous(breaks = seq(0, 100, 5)) +
+  coord_flip()
+```
+
+```{r fig.height=18, fig.width=14}
+#| echo: false
+
+olympics <- olympics %>%
+  mutate(Decade = floor(year / 10) * 10)
+
+ggplot(olympics %>% filter(!is.na(age)), aes(x = factor(Decade), y = age, fill = factor(Decade))) +
+  geom_boxplot(outlier.alpha = 0.5) +
+  labs(title = "Age Distribution of Athletes Across Decades",
+       x = "Decade",
+       y = "Age") +
+  theme_minimal() +
+  theme(
+      axis.text.x = element_text(size = 18, face = "bold"),
+      axis.text.y = element_text(size = 18, face = "bold"),
+      axis.title.x = element_text(size = 25, face = "bold"),
+      axis.title.y = element_text(size = 25, face = "bold"),
+      plot.title = element_text(size = 30, face = "bold"),
+      legend.position = "none")
+```
