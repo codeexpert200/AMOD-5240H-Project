@@ -1,5 +1,5 @@
 ---
-title: "AMOD-5240H Project EDA Summary Statistics"
+title: "AMOD-5240H Project EDA"
 author: "Yameen"
 format: pdf
 ---
@@ -9,58 +9,48 @@ format: pdf
 
 library(tidyverse)
 library(knitr)
+library(dplyr)
 library(ggplot2)
 
 olympics <- read_csv("https://raw.githubusercontent.com/rfordatascience/tidytuesday/main/data/2024/2024-08-06/olympics.csv")
 ```
 
+# Summary Statistics
+
 ```{r}
 #| echo: false
+#| warning: false
 
 num_summary <- olympics %>%
   summarise(
-    Mean_Age = mean(age, na.rm = TRUE),
-    Median_Age = median(age, na.rm = TRUE),
-    Min_Age = min(age, na.rm = TRUE),
-    Max_Age = max(age, na.rm = TRUE),
-    SD_Age = sd(age, na.rm = TRUE),
-    IQR_Age = IQR(age, na.rm = TRUE),
-
-    Mean_Height = mean(height, na.rm = TRUE),
-    Median_Height = median(height, na.rm = TRUE),
-    Min_Height = min(height, na.rm = TRUE),
-    Max_Height = max(height, na.rm = TRUE),
-    SD_Height = sd(height, na.rm = TRUE),
-    IQR_Height = IQR(height, na.rm = TRUE),
-
-    Mean_Weight = mean(weight, na.rm = TRUE),
-    Median_Weight = median(weight, na.rm = TRUE),
-    Min_Weight = min(weight, na.rm = TRUE),
-    Max_Weight = max(weight, na.rm = TRUE),
-    SD_Weight = sd(weight, na.rm = TRUE),
-    IQR_Weight = IQR(weight, na.rm = TRUE)
+    Mean = c(mean(age, na.rm = TRUE), mean(height, na.rm = TRUE), mean(weight, na.rm = TRUE)),
+    Median = c(median(age, na.rm = TRUE), median(height, na.rm = TRUE), median(weight, na.rm = TRUE)),
+    Min = c(min(age, na.rm = TRUE), min(height, na.rm = TRUE), min(weight, na.rm = TRUE)),
+    Max = c(max(age, na.rm = TRUE), max(height, na.rm = TRUE), max(weight, na.rm = TRUE)),
+    SD = c(sd(age, na.rm = TRUE), sd(height, na.rm = TRUE), sd(weight, na.rm = TRUE)),
+    IQR = c(IQR(age, na.rm = TRUE), IQR(height, na.rm = TRUE), IQR(weight, na.rm = TRUE))
   ) %>%
-  pivot_longer(cols = everything(), names_to = "Statistic", values_to = "Value")
+  mutate(Variable = c("Age", "Height", "Weight")) %>%
+  relocate(Variable)
 
-kable(num_summary, caption = "Summary Statistics for Continuous Variables", digits = 2)
+kable(num_summary, caption = "Summary Statistics for Age, Height, and Weight", digits = 2)
 ```
 
 ```{r}
 #| echo: false
+#| layout-ncol: 2
 
 cat_summary_sex <- olympics %>%
   count(sex) %>%
-  mutate(Proportion = n / sum(n))
+  mutate(Proportion = round((n / sum(n)) * 100, 2)) %>% 
+  rename(Sex = sex, Count = n, `Proportion (%)` = Proportion)
 
 kable(cat_summary_sex, caption = "Proportion of Athletes by Sex")
-```
-
-```{r}
-#| echo: false
 
 cat_summary_medal <- olympics %>%
   count(medal) %>%
-  mutate(Proportion = n / sum(n))
+  mutate(Proportion = round((n / sum(n)) * 100, 2)) %>%  
+  rename(`Medal Type` = medal, Count = n, `Proportion (%)` = Proportion)
 
 kable(cat_summary_medal, caption = "Proportion of Medal Winners")
 ```
@@ -71,50 +61,126 @@ kable(cat_summary_medal, caption = "Proportion of Medal Winners")
 cat_summary_combined <- olympics %>%
   group_by(medal, sex) %>%
   summarise(Count = n(), .groups = "drop") %>%
-  mutate(Proportion = Count / sum(Count)) %>%
-  pivot_wider(names_from = sex, values_from = c(Count, Proportion))
+  mutate(Proportion = round((Count / sum(Count)) * 100, 2)) %>%
+  pivot_wider(names_from = sex, values_from = c(Count, Proportion)) %>%
+  rename(`Medal Type` = medal,
+         `Count (Female)` = Count_F,
+         `Count (Male)` = Count_M,
+         `Proportion (Female %)` = Proportion_F,
+         `Proportion (Male %)` = Proportion_M)
 
-kable(cat_summary_combined, caption = "Medal Distribution by Mdeal Type Sex")
+kable(cat_summary_combined, caption = "Medal Distribution by Medal Type & Sex")
 ```
 
-```{r fig.height=18, fig.width=14}
-#| echo: false
+# Visualization
 
-ggplot(olympics %>% filter(!is.na(age)), aes(x = sport, y = age, fill = sport)) +
-  geom_boxplot(outlier.alpha = 0.5) +  
-  labs(title = "Age Distribution by Sport",
-       x = "Sport",
-       y = "Age") +
+```{r fig.height=20, fig.width=18}
+#| echo: false
+#| fig-cap: "Box Plot of Weight Distribution by Sport"
+
+ggplot(olympics %>% filter(!is.na(weight)), 
+       aes(x = sport, y = weight, fill = sport)) +
+  geom_boxplot(fill = "steelblue",
+               outlier.shape = 21, 
+               outlier.fill = "red", 
+               outlier.size = 5, 
+               alpha = 0.7) +
+  labs(x = "Sport",
+       y = "Weight (kg)") +
   theme_minimal() +
   theme(
-    axis.text.x = element_text(size = 18, face = "bold"),
-    axis.text.y = element_text(size = 18, face = "bold"),
-    axis.title.x = element_text(size = 25, face = "bold"),
-    axis.title.y = element_text(size = 25, face = "bold"),
-    plot.title = element_text(size = 30, face = "bold"),
-    legend.position = "none"
+    axis.text.x = element_text(size = 25, face = "bold"),
+    axis.text.y = element_text(size = 25, face = "bold"),
+    axis.title.x = element_text(size = 30, face = "bold"),
+    axis.title.y = element_text(size = 30, face = "bold"),
+    legend.position = "none",
   ) +
-  scale_y_continuous(breaks = seq(0, 100, 5)) +
+  scale_y_continuous(breaks = seq(0, 250, 20)) +
+  expand_limits(y = 0) +
   coord_flip()
 ```
 
-```{r fig.height=18, fig.width=14}
-#| echo: false
+# Discussion
 
-olympics <- olympics %>%
-  mutate(Decade = floor(year / 10) * 10)
+## Summary Statistics (Table 1)
 
-ggplot(olympics %>% filter(!is.na(age)), aes(x = factor(Decade), y = age, fill = factor(Decade))) +
-  geom_boxplot(outlier.alpha = 0.5) +
-  labs(title = "Age Distribution of Athletes Across Decades",
-       x = "Decade",
-       y = "Age") +
-  theme_minimal() +
-  theme(
-      axis.text.x = element_text(size = 18, face = "bold"),
-      axis.text.y = element_text(size = 18, face = "bold"),
-      axis.title.x = element_text(size = 25, face = "bold"),
-      axis.title.y = element_text(size = 25, face = "bold"),
-      plot.title = element_text(size = 30, face = "bold"),
-      legend.position = "none")
-```
+Table 1 presents descriptive statistics for three continuous variables: Age, Height, and Weight of athletes.
+
+**Key Insights:**
+
+**Age:**
+
+1. The mean age is 25.56 years, with a median of 24 years, indicating a slightly right-skewed distribution.
+2. The minimum age is 10, suggesting participation of very young athletes.
+3. The maximum age is 97, indicating that some sports allow much older competitors.
+4. The IQR is 7, showing that most athletes fall within a 7-year age range around the median.
+
+**Height:**
+
+1. The mean height is 175.34 cm, with a median of 175 cm, suggesting a fairly symmetric distribution.
+2. Heights range from 127 cm to 226 cm, showing significant variation, likely due to different sports requiring different physical attributes.
+3. The IQR is 15 cm, indicating moderate dispersion around the median.
+
+**Weight:**
+
+1. The mean weight is 70.70 kg, with a median of 70 kg, showing a balanced distribution.
+2. The minimum weight is 25 kg, while the maximum is 214 kg, showing extreme variation due to different body requirements across sports.
+3. The IQR is 19 kg, indicating a relatively wider spread of weight compared to height.
+
+Overall, these statistics show substantial variation in athlete characteristics, reflecting the diversity of physical demands across different sports.
+
+## Proportion of Athletes by Sex (Table 2)
+
+Table 2 provides an overview of the distribution of athletes based on sex in the dataset.
+
+**Key Insights:**
+
+- Male athletes (M) make up 72.51% of the dataset, while female athletes (F) account for only 27.49%.
+- This indicates a historical gender disparity in Olympic participation, with men being overrepresented.
+- This imbalance could be due to historical factors where fewer women competed in early Olympic events.
+- Further analysis could examine trends over different decades to see if this gender gap has narrowed over time.
+
+## Proportion of Medal Winners (Table 3)
+
+Table 3 breaks down the proportion of medals won, including athletes who did not receive a medal (NA category).
+
+**Key Insights:**
+
+- Only a small proportion of participants win medals:
+    - Gold: 4.93%
+    - Silver: 4.84%
+    - Bronze: 4.90%
+    - No Medal (NA): 85.33%
+- The vast majority (85.33%) of athletes do not win any medals, highlighting the competitive nature of the Olympics.
+- The distribution among the three medal types is fairly even, with no significant bias toward one type.
+- Further exploration could examine whether certain sports have a higher likelihood of medal wins.
+
+## Medal Distribution by Medal Type and Sex (Table 4)
+
+Table 4 provides a gender-based breakdown of medal distributions across different medal types.
+
+**Key Insights:**
+
+- Male athletes have won significantly more medals than female athletes, reflecting historical participation disparities.
+- The proportions for each medal type between male and female athletes are similar, meaning that once competing, both sexes have similar success rates.
+- NA category (athletes without medals) is notably high for both males and females, aligning with the previous table showing only ~15% of participants win medals.
+- Future analysis could investigate if participation in certain sports influences medal-winning rates for each gender.
+
+## Visualization with Box Plot of Weight Distribution by Sport (Figure 1)
+
+The box plot in Figure 1 provides an overview of the weight distribution of Olympic athletes across different sports. It allows us to analyze the spread, central tendency, and potential outliers for each sport in terms of weight.
+
+**Key Observations:**
+
+1. Sports with Higher Median Weight
+- Weightlifting, Wrestling, and Rugby have the highest median weights, with most athletes in these categories weighing significantly more than athletes in other sports.
+- Water Polo, Ice Hockey, and Rowing also show relatively higher weight distributions, likely due to the physical strength required in these sports
+2. Sports with Lower Median Weight
+- Gymnastics, Diving, and Figure Skating show some of the lowest weight distributions among all sports.
+- Rhythmic Gymnastics and Synchronized Swimming exhibit very compact distributions with lower variability, indicating that most athletes in these sports fall within a narrow weight range.
+3. Outliers and Extreme Values
+- Several sports, such as Wrestling, Weightlifting, and Rugby, contain upper outliers, indicating that some athletes weigh significantly more than their peers in the same sport.
+- Archery, Equestrianism, and Art Competitions show less variation, meaning the athlete weights in these sports are relatively uniform.  
+4. Variability in Weight Across Sports
+- Sports like Athletics and Swimming have a wide spread, indicating a large range of athlete weights, which is expected due to the variety of events within these sports (e.g., sprinters vs. long-distance runners, or sprinters vs. swimmers).
+- Basketball, Volleyball, and Rowing also show a large IQR, reflecting diversity in body composition within the sport.
